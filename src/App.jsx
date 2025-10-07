@@ -5,7 +5,7 @@ const MomentsShare = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentScreen, setCurrentScreen] = useState('login');
   const [activeTab, setActiveTab] = useState('home');
-  const [chatSubTab, setChatSubTab] = useState('ongoing'); // 'ongoing' or 'past'
+  const [chatSubTab, setChatSubTab] = useState('ongoing');
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [tmModel, setTmModel] = useState(null);
@@ -29,18 +29,23 @@ const MomentsShare = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('전체');
   
+  const [rentalModalOpen, setRentalModalOpen] = useState(false);
+  const [rentalStartDate, setRentalStartDate] = useState('');
+  const [rentalEndDate, setRentalEndDate] = useState('');
+  const [selectedItemForRental, setSelectedItemForRental] = useState(null);
+  
   const [chatRooms, setChatRooms] = useState([]);
   const [selectedChatRoom, setSelectedChatRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [rentalRequests, setRentalRequests] = useState([]);
   const [userRating, setUserRating] = useState(0);
-  const [reviewToWrite, setReviewToWrite] = useState(null); // {requestId, otherUserId, otherUserName}
+  const [reviewToWrite, setReviewToWrite] = useState(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const messagesEndRef = useRef(null);
   
-  const [communityPosts, setCommunityPosts] = useState([
+  const [communityPosts] = useState([
     {
       id: 1,
       type: 'hot',
@@ -81,16 +86,35 @@ const MomentsShare = () => {
 
   const categories = ['전체', '가전제품', '주방용품', '스포츠/레저', '전자기기', '생활용품', '공구', '기타'];
 
-  // 스타일 정의
+  useEffect(() => {
+    document.body.style.background = '#e5e7eb';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    
+    return () => {
+      document.body.style.background = '';
+      document.body.style.margin = '';
+      document.body.style.padding = '';
+    };
+  }, []);
+
   const styles = {
     container: {
       width: '100%',
+      minWidth: '480px',
+      maxWidth: '480px',
+      margin: '0 auto',
       minHeight: '100vh',
       background: '#f3f4f6',
       paddingBottom: '80px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      position: 'relative'
     },
     loginContainer: {
+      width: '100%',
+      minWidth: '480px',
+      maxWidth: '480px',
+      margin: '0 auto',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -114,8 +138,11 @@ const MomentsShare = () => {
     navbar: {
       position: 'fixed',
       bottom: 0,
-      left: 0,
+      left: '50%',
+      transform: 'translateX(-50%)',
       width: '100%',
+      minWidth: '480px',
+      maxWidth: '480px',
       background: 'white',
       display: 'flex',
       justifyContent: 'space-around',
@@ -215,6 +242,9 @@ const MomentsShare = () => {
     },
     chatContainer: {
       width: '100%',
+      minWidth: '480px',
+      maxWidth: '480px',
+      margin: '0 auto',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -349,7 +379,11 @@ const MomentsShare = () => {
         { userId: 'user1', username: '새내기', password: 'pass1234', avatar: '🎓' },
         { userId: 'user2', username: '직딩', password: 'pass1234', avatar: '💼' },
         { userId: 'user3', username: '할매', password: 'pass1234', avatar: '👵' },
-        { userId: 'user4', username: '학생', password: 'pass1234', avatar: '📚' }
+        { userId: 'user4', username: '학생', password: 'pass1234', avatar: '📚' },
+        { userId: 'user5', username: '요리사', password: 'pass1234', avatar: '👨‍🍳' },
+        { userId: 'user6', username: '운동러', password: 'pass1234', avatar: '💪' },
+        { userId: 'user7', username: '음악가', password: 'pass1234', avatar: '🎵' },
+        { userId: 'user8', username: '디자이너', password: 'pass1234', avatar: '🎨' }
       ];
       
       for (const user of dummyUsers) {
@@ -711,18 +745,11 @@ const MomentsShare = () => {
       return;
     }
     
-    if (!manualStartDate || !manualEndDate) {
-      alert('대여 가능 기간을 입력해주세요.');
-      return;
-    }
-    
     const newItem = {
       name: isManualMode ? manualName : recognizedData.name,
       category: isManualMode ? manualCategory : recognizedData.category,
       image: uploadedImage,
-      description: manualDescription || '설명 없음',
-      startDate: manualStartDate,
-      endDate: manualEndDate
+      description: manualDescription || '설명 없음'
     };
     
     const itemId = await saveItem(newItem);
@@ -748,6 +775,18 @@ const MomentsShare = () => {
   };
 
   const requestRental = async (item) => {
+    setSelectedItemForRental(item);
+    setRentalModalOpen(true);
+  };
+
+  const submitRentalRequest = async () => {
+    if (!rentalStartDate || !rentalEndDate) {
+      alert('대여 희망일자를 입력해주세요.');
+      return;
+    }
+
+    const item = selectedItemForRental;
+    
     if (!firebaseReady) {
       alert('시스템 초기화 중입니다.');
       return;
@@ -777,10 +816,16 @@ const MomentsShare = () => {
         ownerId: item.ownerUserId,
         ownerName: item.ownerUsername,
         status: 'pending',
+        rentalStartDate: rentalStartDate,
+        rentalEndDate: rentalEndDate,
         createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
       });
 
       alert('대여 요청을 보냈습니다! 채팅 탭에서 확인하세요.');
+      setRentalModalOpen(false);
+      setRentalStartDate('');
+      setRentalEndDate('');
+      setSelectedItemForRental(null);
       setCurrentScreen('chat');
       setActiveTab('chat');
     } catch (error) {
@@ -926,7 +971,6 @@ const MomentsShare = () => {
         rentedTo: null
       });
 
-      // 평가 작성 유도
       const otherUserId = request.type === 'received' ? request.requesterId : request.ownerId;
       const otherUserName = request.type === 'received' ? request.requesterName : request.ownerName;
       
@@ -955,7 +999,6 @@ const MomentsShare = () => {
     const db = window.firebase.firestore();
     
     try {
-      // 리뷰 저장
       await db.collection('reviews').add({
         requestId: reviewToWrite.requestId,
         reviewerId: currentUser.userId,
@@ -967,7 +1010,6 @@ const MomentsShare = () => {
         createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // 사용자 평점 업데이트
       const userDoc = await db.collection('users').doc(reviewToWrite.otherUserId).get();
       if (userDoc.exists) {
         const userData = userDoc.data();
@@ -987,7 +1029,6 @@ const MomentsShare = () => {
       setReviewRating(5);
       setReviewComment('');
       
-      // 내 평점도 새로고침
       await loadUserRating(currentUser.userId);
     } catch (error) {
       console.error('리뷰 등록 오류:', error);
@@ -1005,7 +1046,6 @@ const MomentsShare = () => {
   const ongoingRequests = rentalRequests.filter(r => ['pending', 'approved'].includes(r.status));
   const pastRequests = rentalRequests.filter(r => ['completed', 'rejected'].includes(r.status));
 
-  // 로그인 화면
   if (currentScreen === 'login') {
     return (
       <div style={styles.loginContainer}>
@@ -1050,19 +1090,80 @@ const MomentsShare = () => {
             >
               {firebaseReady ? '로그인' : '시스템 초기화 중...'}
             </button>
-            <div style={{background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '8px', padding: '16px'}}>
-              <p style={{fontSize: '14px', fontWeight: '600', color: '#1e3a8a', marginBottom: '8px', margin: '0 0 8px 0'}}>💡 테스트 계정</p>
-              <div style={{fontSize: '12px', color: '#1e40af'}}>
-                <p style={{margin: 0}}>user1 ~ user4 / pass1234</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // 네비게이션 바
+  const RentalRequestModal = () => {
+    if (!rentalModalOpen || !selectedItemForRental) return null;
+
+    return (
+      <div style={styles.modal} onClick={() => {
+        setRentalModalOpen(false);
+        setRentalStartDate('');
+        setRentalEndDate('');
+        setSelectedItemForRental(null);
+      }}>
+        <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <h2 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '16px'}}>대여 신청</h2>
+          
+          <div style={{marginBottom: '20px', padding: '16px', background: '#f9fafb', borderRadius: '12px'}}>
+            <p style={{fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0'}}>물품</p>
+            <p style={{fontSize: '16px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{selectedItemForRental.name}</p>
+          </div>
+
+          <div style={{marginBottom: '20px'}}>
+            <label style={{display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px'}}>
+              <Calendar size={16} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
+              대여 시작 희망일시
+            </label>
+            <input
+              type="datetime-local"
+              value={rentalStartDate}
+              onChange={(e) => setRentalStartDate(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={{marginBottom: '20px'}}>
+            <label style={{display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px'}}>
+              <Clock size={16} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
+              대여 종료 희망일시
+            </label>
+            <input
+              type="datetime-local"
+              value={rentalEndDate}
+              onChange={(e) => setRentalEndDate(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={{display: 'flex', gap: '12px'}}>
+            <button
+              onClick={() => {
+                setRentalModalOpen(false);
+                setRentalStartDate('');
+                setRentalEndDate('');
+                setSelectedItemForRental(null);
+              }}
+              style={{...styles.button, ...styles.buttonSecondary, flex: 1}}
+            >
+              취소
+            </button>
+            <button
+              onClick={submitRentalRequest}
+              style={{...styles.button, ...styles.buttonPrimary, flex: 1}}
+            >
+              신청하기
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const NavBar = () => (
     <div style={styles.navbar}>
       {[
@@ -1076,7 +1177,6 @@ const MomentsShare = () => {
         <button 
           key={id} 
           onClick={() => { 
-            console.log('🔘 탭 클릭:', id);
             setCurrentScreen(id); 
             setActiveTab(id); 
           }}
@@ -1092,7 +1192,6 @@ const MomentsShare = () => {
     </div>
   );
 
-  // 리뷰 작성 모달
   const ReviewModal = () => {
     if (!reviewToWrite) return null;
 
@@ -1107,9 +1206,9 @@ const MomentsShare = () => {
           
           <div style={{marginBottom: '20px', padding: '16px', background: '#f9fafb', borderRadius: '12px'}}>
             <p style={{fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0'}}>물품</p>
-            <p style={{fontSize: '16px', fontWeight: '600', margin: 0}}>{reviewToWrite.itemName}</p>
+            <p style={{fontSize: '16px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{reviewToWrite.itemName}</p>
             <p style={{fontSize: '14px', color: '#6b7280', marginTop: '8px', margin: '8px 0 0 0'}}>상대방</p>
-            <p style={{fontSize: '16px', fontWeight: '600', margin: 0}}>{reviewToWrite.otherUserName}</p>
+            <p style={{fontSize: '16px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{reviewToWrite.otherUserName}</p>
           </div>
 
           <div style={{marginBottom: '20px'}}>
@@ -1170,7 +1269,6 @@ const MomentsShare = () => {
     );
   };
 
-  // 홈 화면
   if (currentScreen === 'home') {
     return (
       <div style={styles.container}>
@@ -1195,7 +1293,6 @@ const MomentsShare = () => {
         </div>
 
         <div style={{padding: '20px'}}>
-          {/* 커뮤니티 섹션 */}
           <div style={{marginBottom: '32px'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
               <h2 style={{fontSize: '20px', fontWeight: 'bold', margin: 0}}>🔥 동네 이야기</h2>
@@ -1215,8 +1312,8 @@ const MomentsShare = () => {
                 >
                   <div style={{display: 'flex', alignItems: 'start', gap: '16px'}}>
                     <span style={{fontSize: '40px'}}>{post.avatar}</span>
-                    <div style={{flex: 1}}>
-                      <h3 style={{fontSize: '16px', fontWeight: 'bold', margin: '0 0 6px 0'}}>{post.title}</h3>
+                    <div style={{flex: 1, minWidth: 0}}>
+                      <h3 style={{fontSize: '16px', fontWeight: 'bold', margin: '0 0 6px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{post.title}</h3>
                       <p style={{fontSize: '14px', color: '#6b7280', margin: '0 0 12px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                         {post.content}
                       </p>
@@ -1233,7 +1330,6 @@ const MomentsShare = () => {
             </div>
           </div>
 
-          {/* 공유물품 섹션 */}
           <h2 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '16px'}}>등록된 공유물품 ({items.length}개)</h2>
           
           {!firebaseReady ? (
@@ -1283,12 +1379,12 @@ const MomentsShare = () => {
           )}
         </div>
         <NavBar />
+        <RentalRequestModal />
         <ReviewModal />
       </div>
     );
   }
 
-  // 검색 화면
   if (currentScreen === 'search') {
     return (
       <div style={styles.container}>
@@ -1341,12 +1437,12 @@ const MomentsShare = () => {
                 >
                   <div style={{display: 'flex', gap: '16px', padding: '16px'}}>
                     <img src={item.image} alt={item.name} style={{width: '90px', height: '90px', objectFit: 'cover', borderRadius: '12px'}} />
-                    <div style={{flex: 1}}>
-                      <h3 style={{fontSize: '17px', fontWeight: 'bold', margin: '0 0 6px 0'}}>{item.name}</h3>
-                      <p style={{fontSize: '13px', color: '#6b7280', margin: '0 0 10px 0'}}>{item.category}</p>
+                    <div style={{flex: 1, minWidth: 0}}>
+                      <h3 style={{fontSize: '17px', fontWeight: 'bold', margin: '0 0 6px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.name}</h3>
+                      <p style={{fontSize: '13px', color: '#6b7280', margin: '0 0 10px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.category}</p>
                       <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                         <span>{item.ownerAvatar}</span>
-                        <span style={{fontSize: '13px'}}>{item.ownerUsername}</span>
+                        <span style={{fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.ownerUsername}</span>
                       </div>
                     </div>
                   </div>
@@ -1356,11 +1452,11 @@ const MomentsShare = () => {
           )}
         </div>
         <NavBar />
+        <RentalRequestModal />
       </div>
     );
   }
 
-  // 등록 화면
   if (currentScreen === 'register') {
     return (
       <div style={styles.container}>
@@ -1460,32 +1556,6 @@ const MomentsShare = () => {
                     />
                   </div>
 
-                  <div style={{marginBottom: '20px'}}>
-                    <label style={{display: 'block', fontSize: '15px', fontWeight: '600', marginBottom: '10px'}}>
-                      <Calendar size={18} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
-                      대여 시작일시
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={manualStartDate}
-                      onChange={(e) => setManualStartDate(e.target.value)}
-                      style={styles.input}
-                    />
-                  </div>
-
-                  <div style={{marginBottom: '20px'}}>
-                    <label style={{display: 'block', fontSize: '15px', fontWeight: '600', marginBottom: '10px'}}>
-                      <Clock size={18} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
-                      대여 종료일시
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={manualEndDate}
-                      onChange={(e) => setManualEndDate(e.target.value)}
-                      style={styles.input}
-                    />
-                  </div>
-
                   <button
                     onClick={() => setIsManualMode(!isManualMode)}
                     style={{...styles.button, ...styles.buttonSecondary, marginBottom: '10px'}}
@@ -1518,11 +1588,11 @@ const MomentsShare = () => {
           )}
         </div>
         <NavBar />
+        <RentalRequestModal />
       </div>
     );
   }
 
-  // 마이페이지
   if (currentScreen === 'mypage') {
     const myItems = items.filter(item => item.ownerUserId === currentUser?.userId);
     const rentedItems = items.filter(item => item.rentedTo === currentUser?.userId);
@@ -1537,11 +1607,11 @@ const MomentsShare = () => {
             <div style={{textAlign: 'center'}}>
               <div style={{fontSize: '70px', marginBottom: '16px'}}>{currentUser?.avatar}</div>
               <h3 style={{fontSize: '22px', fontWeight: 'bold', margin: '0 0 8px 0'}}>{currentUser?.username}</h3>
+              <p style={{fontSize: '14px', color: '#9ca3af', margin: '4px 0 12px 0'}}>@{currentUser?.userId}</p>
               <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px'}}>
                 <Star size={20} fill="#fbbf24" color="#fbbf24" />
                 <span style={{fontSize: '18px', fontWeight: '600', color: '#1f2937'}}>{userRating.toFixed(1)}</span>
               </div>
-              <p style={{fontSize: '14px', color: '#6b7280', marginTop: '8px'}}>최소한의 정보로 안전하게</p>
             </div>
           </div>
           
@@ -1562,9 +1632,9 @@ const MomentsShare = () => {
                       style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px', cursor: 'pointer'}} 
                       onClick={() => handleItemClick(item)}
                     />
-                    <div style={{flex: 1, cursor: 'pointer'}} onClick={() => handleItemClick(item)}>
-                      <p style={{fontWeight: '600', fontSize: '15px', margin: '0 0 4px 0'}}>{item.name}</p>
-                      <p style={{fontSize: '13px', color: '#6b7280', margin: '0 0 6px 0'}}>{item.category}</p>
+                    <div style={{flex: 1, minWidth: 0, cursor: 'pointer'}} onClick={() => handleItemClick(item)}>
+                      <p style={{fontWeight: '600', fontSize: '15px', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.name}</p>
+                      <p style={{fontSize: '13px', color: '#6b7280', margin: '0 0 6px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.category}</p>
                       <span style={{
                         ...(item.status === 'rented' ? styles.statusRented : styles.statusAvailable),
                         fontSize: '11px',
@@ -1591,19 +1661,41 @@ const MomentsShare = () => {
               <p style={{fontSize: '14px', color: '#6b7280', textAlign: 'center', padding: '20px'}}>대여중인 물품이 없습니다</p>
             ) : (
               <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
-                {rentedItems.map(item => (
-                  <div 
-                    key={item.id} 
-                    onClick={() => handleItemClick(item)}
-                    style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '12px', borderRadius: '10px', cursor: 'pointer', background: '#f9fafb'}}
-                  >
-                    <img src={item.image} alt={item.name} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px'}} />
-                    <div style={{flex: 1}}>
-                      <p style={{fontWeight: '600', fontSize: '15px', margin: '0 0 4px 0'}}>{item.name}</p>
-                      <p style={{fontSize: '13px', color: '#6b7280', margin: 0}}>{item.ownerUsername}님의 물품</p>
+                {rentedItems.map(item => {
+                  const rentalRequest = rentalRequests.find(r => 
+                    r.itemId === item.id && 
+                    r.requesterId === currentUser.userId && 
+                    r.status === 'approved'
+                  );
+                  
+                  return (
+                    <div 
+                      key={item.id} 
+                      onClick={() => handleItemClick(item)}
+                      style={{display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px', borderRadius: '10px', cursor: 'pointer', background: '#f9fafb'}}
+                    >
+                      <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
+                        <img src={item.image} alt={item.name} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px'}} />
+                        <div style={{flex: 1, minWidth: 0}}>
+                          <p style={{fontWeight: '600', fontSize: '15px', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.name}</p>
+                          <p style={{fontSize: '13px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.ownerUsername}님의 물품</p>
+                        </div>
+                      </div>
+                      {rentalRequest && rentalRequest.rentalStartDate && rentalRequest.rentalEndDate && (
+                        <div style={{padding: '12px', background: '#f0f9ff', borderRadius: '8px', fontSize: '12px'}}>
+                          <p style={{margin: '0 0 4px 0', color: '#0369a1'}}>
+                            <Calendar size={14} style={{display: 'inline', marginRight: '4px', verticalAlign: 'middle'}} />
+                            {new Date(rentalRequest.rentalStartDate).toLocaleDateString('ko-KR')}
+                          </p>
+                          <p style={{margin: 0, color: '#0369a1'}}>
+                            <Clock size={14} style={{display: 'inline', marginRight: '4px', verticalAlign: 'middle'}} />
+                            {new Date(rentalRequest.rentalEndDate).toLocaleDateString('ko-KR')}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1617,18 +1709,17 @@ const MomentsShare = () => {
           </button>
         </div>
         <NavBar />
+        <RentalRequestModal />
       </div>
     );
   }
 
-  // 채팅 화면
   if (currentScreen === 'chat') {
     return (
       <div style={styles.container}>
         <div style={styles.header}>
           <h2 style={{fontSize: '22px', fontWeight: 'bold', margin: '0 0 16px 0'}}>대여 요청 & 채팅</h2>
           
-          {/* 서브탭 */}
           <div style={{display: 'flex', gap: '12px'}}>
             <button
               onClick={() => setChatSubTab('ongoing')}
@@ -1679,13 +1770,26 @@ const MomentsShare = () => {
                     <div key={request.id} style={{...styles.card, padding: '20px'}}>
                       <div style={{display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px'}}>
                         <img src={request.itemImage} alt={request.itemName} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px'}} />
-                        <div style={{flex: 1}}>
-                          <h4 style={{fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0'}}>{request.itemName}</h4>
-                          <p style={{fontSize: '13px', color: '#6b7280', margin: 0}}>
+                        <div style={{flex: 1, minWidth: 0}}>
+                          <h4 style={{fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{request.itemName}</h4>
+                          <p style={{fontSize: '13px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                             {request.type === 'received' ? `${request.requesterAvatar} ${request.requesterName}님이 요청` : `${request.ownerName}님에게 요청`}
                           </p>
                         </div>
                       </div>
+                      
+                      {request.rentalStartDate && request.rentalEndDate && (
+                        <div style={{marginBottom: '12px', padding: '12px', background: '#f0f9ff', borderRadius: '8px', fontSize: '12px'}}>
+                          <p style={{margin: '0 0 4px 0', color: '#0369a1'}}>
+                            <Calendar size={14} style={{display: 'inline', marginRight: '4px', verticalAlign: 'middle'}} />
+                            대여 시작: {new Date(request.rentalStartDate).toLocaleString('ko-KR')}
+                          </p>
+                          <p style={{margin: 0, color: '#0369a1'}}>
+                            <Clock size={14} style={{display: 'inline', marginRight: '4px', verticalAlign: 'middle'}} />
+                            대여 종료: {new Date(request.rentalEndDate).toLocaleString('ko-KR')}
+                          </p>
+                        </div>
+                      )}
                       
                       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                         <span style={{
@@ -1768,12 +1872,12 @@ const MomentsShare = () => {
                       >
                         <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
                           <img src={room.itemImage} alt={room.itemName} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px'}} />
-                          <div style={{flex: 1}}>
+                          <div style={{flex: 1, minWidth: 0}}>
                             <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px'}}>
                               <span style={{fontSize: '22px'}}>{otherUser?.avatar}</span>
-                              <h3 style={{fontWeight: 'bold', fontSize: '16px', margin: 0}}>{otherUser?.username}</h3>
+                              <h3 style={{fontWeight: 'bold', fontSize: '16px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{otherUser?.username}</h3>
                             </div>
-                            <p style={{fontSize: '13px', color: '#6b7280', marginBottom: '6px', margin: '0 0 6px 0'}}>{room.itemName}</p>
+                            <p style={{fontSize: '13px', color: '#6b7280', marginBottom: '6px', margin: '0 0 6px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{room.itemName}</p>
                             <p style={{fontSize: '13px', color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0}}>{room.lastMessage || '새 채팅'}</p>
                           </div>
                         </div>
@@ -1796,9 +1900,9 @@ const MomentsShare = () => {
                     <div key={request.id} style={{...styles.card, padding: '20px'}}>
                       <div style={{display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px'}}>
                         <img src={request.itemImage} alt={request.itemName} style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px'}} />
-                        <div style={{flex: 1}}>
-                          <h4 style={{fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0'}}>{request.itemName}</h4>
-                          <p style={{fontSize: '13px', color: '#6b7280', margin: 0}}>
+                        <div style={{flex: 1, minWidth: 0}}>
+                          <h4 style={{fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{request.itemName}</h4>
+                          <p style={{fontSize: '13px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                             {request.type === 'received' ? `${request.requesterAvatar} ${request.requesterName}님` : `${request.ownerName}님`}
                           </p>
                         </div>
@@ -1818,12 +1922,12 @@ const MomentsShare = () => {
           )}
         </div>
         <NavBar />
+        <RentalRequestModal />
         <ReviewModal />
       </div>
     );
   }
 
-  // 채팅 상세 화면
   if (currentScreen === 'chatDetail' && selectedChatRoom) {
     const otherUserId = selectedChatRoom.participants.find(id => id !== currentUser.userId);
     const otherUser = selectedChatRoom.participantsInfo[otherUserId];
@@ -1842,11 +1946,11 @@ const MomentsShare = () => {
             >
               <ChevronLeft size={26} />
             </button>
-            <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0}}>
               <span style={{fontSize: '28px'}}>{otherUser?.avatar}</span>
-              <div>
-                <h2 style={{fontSize: '20px', fontWeight: 'bold', margin: 0}}>{otherUser?.username}</h2>
-                <p style={{fontSize: '13px', opacity: 0.9, margin: 0}}>{selectedChatRoom.itemName}</p>
+              <div style={{minWidth: 0, flex: 1}}>
+                <h2 style={{fontSize: '20px', fontWeight: 'bold', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{otherUser?.username}</h2>
+                <p style={{fontSize: '13px', opacity: 0.9, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{selectedChatRoom.itemName}</p>
               </div>
             </div>
           </div>
@@ -1906,11 +2010,11 @@ const MomentsShare = () => {
             <Send size={22} />
           </button>
         </div>
+        <RentalRequestModal />
       </div>
     );
   }
 
-  // 물품 상세 화면
   if (currentScreen === 'itemDetail' && selectedItem) {
     const isMyItem = selectedItem.ownerUserId === currentUser?.userId;
 
@@ -1947,8 +2051,8 @@ const MomentsShare = () => {
 
               <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', padding: '16px', background: '#f9fafb', borderRadius: '12px'}}>
                 <span style={{fontSize: '40px'}}>{selectedItem.ownerAvatar}</span>
-                <div>
-                  <p style={{fontWeight: '600', fontSize: '16px', margin: 0}}>{selectedItem.ownerUsername}</p>
+                <div style={{minWidth: 0, flex: 1}}>
+                  <p style={{fontWeight: '600', fontSize: '16px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{selectedItem.ownerUsername}</p>
                   <p style={{fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0'}}>물품 제공자</p>
                 </div>
               </div>
@@ -1957,22 +2061,6 @@ const MomentsShare = () => {
                 <h3 style={{fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#6b7280'}}>설명</h3>
                 <p style={{fontSize: '15px', lineHeight: '1.7', margin: 0}}>{selectedItem.description}</p>
               </div>
-
-              {selectedItem.startDate && selectedItem.endDate && (
-                <div style={{marginBottom: '20px', padding: '16px', background: '#f0f9ff', borderRadius: '12px'}}>
-                  <h3 style={{fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#0369a1'}}>대여 가능 기간</h3>
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
-                    <p style={{fontSize: '14px', margin: 0}}>
-                      <Calendar size={16} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
-                      시작: {new Date(selectedItem.startDate).toLocaleString('ko-KR')}
-                    </p>
-                    <p style={{fontSize: '14px', margin: 0}}>
-                      <Clock size={16} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
-                      종료: {new Date(selectedItem.endDate).toLocaleString('ko-KR')}
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {!isMyItem && selectedItem.status === 'available' && (
                 <div style={{display: 'flex', gap: '12px'}}>
@@ -2020,11 +2108,11 @@ const MomentsShare = () => {
           </div>
         </div>
         <NavBar />
+        <RentalRequestModal />
       </div>
     );
   }
 
-  // 커뮤니티 화면
   if (currentScreen === 'community') {
     return (
       <div style={styles.container}>
@@ -2036,9 +2124,9 @@ const MomentsShare = () => {
             <div key={post.id} style={{...styles.card, padding: '24px', marginBottom: '16px'}}>
               <div style={{display: 'flex', alignItems: 'start', gap: '16px', marginBottom: '16px'}}>
                 <span style={{fontSize: '46px'}}>{post.avatar}</span>
-                <div style={{flex: 1}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px'}}>
-                    <span style={{fontWeight: 'bold', fontSize: '16px'}}>{post.author}</span>
+                <div style={{flex: 1, minWidth: 0}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap'}}>
+                    <span style={{fontWeight: 'bold', fontSize: '16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{post.author}</span>
                     {post.type === 'hot' && <span style={{background: '#fee2e2', color: '#dc2626', padding: '3px 10px', borderRadius: '14px', fontSize: '12px', fontWeight: '600'}}>🔥 HOT</span>}
                     {post.type === 'interview' && <span style={{background: '#dbeafe', color: '#2563eb', padding: '3px 10px', borderRadius: '14px', fontSize: '12px', fontWeight: '600'}}>📰 인터뷰</span>}
                   </div>
@@ -2057,13 +2145,14 @@ const MomentsShare = () => {
                   💬 {post.comments}
                 </button>
                 <button style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '15px'}}>
-                  📤 공유
+                  🔤 공유
                 </button>
               </div>
             </div>
           ))}
         </div>
         <NavBar />
+        <RentalRequestModal />
       </div>
     );
   }
