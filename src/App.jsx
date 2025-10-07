@@ -101,7 +101,6 @@ const MomentsShare = () => {
   const styles = {
     container: {
       width: '100%',
-      minWidth: '480px',
       maxWidth: '480px',
       margin: '0 auto',
       minHeight: '100vh',
@@ -112,7 +111,6 @@ const MomentsShare = () => {
     },
     loginContainer: {
       width: '100%',
-      minWidth: '480px',
       maxWidth: '480px',
       margin: '0 auto',
       display: 'flex',
@@ -120,7 +118,8 @@ const MomentsShare = () => {
       justifyContent: 'center',
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '20px'
+      padding: '20px',
+      boxSizing: 'border-box'
     },
     card: {
       background: 'white',
@@ -141,7 +140,6 @@ const MomentsShare = () => {
       left: '50%',
       transform: 'translateX(-50%)',
       width: '100%',
-      minWidth: '480px',
       maxWidth: '480px',
       background: 'white',
       display: 'flex',
@@ -242,7 +240,6 @@ const MomentsShare = () => {
     },
     chatContainer: {
       width: '100%',
-      minWidth: '480px',
       maxWidth: '480px',
       margin: '0 auto',
       minHeight: '100vh',
